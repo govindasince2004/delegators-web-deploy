@@ -1,0 +1,202 @@
+name: delegators-workbench
+
+services:
+  web:
+    build:
+      context: .
+      target: runtime
+      args:
+        VITE_WORKBENCH_API_URL: ${VITE_WORKBENCH_API_URL:-}
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
+        VITE_DELEGATORS_GATEWAY_URL: ${VITE_DELEGATORS_GATEWAY_URL:-http://127.0.0.1:8080}
+        VITE_DELEGATORS_STORE_URL: ${VITE_DELEGATORS_STORE_URL:-http://127.0.0.1:5174}
+        VITE_DELEGATORS_DEFAULT_MODEL: ${VITE_DELEGATORS_DEFAULT_MODEL:-dlg-pro}
+    environment:
+      NODE_ENV: production
+      WORKBENCH_PORT: "4175"
+      WORKBENCH_BIND_HOST: 0.0.0.0
+      WORKBENCH_ALLOW_PUBLIC_UNSAFE: "true"
+      WORKBENCH_ALLOW_LOCAL_DELEGATORS: ${WORKBENCH_ALLOW_LOCAL_DELEGATORS:-true}
+      WORKBENCH_AUTH_MODE: ${WORKBENCH_AUTH_MODE:-delegators}
+      WORKBENCH_AUTH_TOKEN: ${WORKBENCH_AUTH_TOKEN:-}
+      # Reach the in-stack gateway on the shared Docker network (host.docker.internal
+      # fails when the gateway binds 127.0.0.1:8080 only).
+      WORKBENCH_DELEGATORS_BASE_URL: ${WORKBENCH_DELEGATORS_BASE_URL:-http://gateway:8080}
+      WORKBENCH_DEFAULT_MODEL: ${WORKBENCH_DEFAULT_MODEL:-dlg-pro}
+      WORKBENCH_ALLOWED_ORIGINS: ${WORKBENCH_ALLOWED_ORIGINS:-http://127.0.0.1:4175,http://localhost:4175}
+      WORKBENCH_ALLOWED_DELEGATORS_ORIGINS: ${WORKBENCH_ALLOWED_DELEGATORS_ORIGINS:-}
+      VITE_WORKBENCH_API_URL: ${VITE_WORKBENCH_API_URL:-}
+      VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
+      VITE_DELEGATORS_GATEWAY_URL: ${VITE_DELEGATORS_GATEWAY_URL:-http://127.0.0.1:8080}
+      VITE_DELEGATORS_STORE_URL: ${VITE_DELEGATORS_STORE_URL:-http://127.0.0.1:5174}
+      WORKBENCH_REDIS_URL: redis://redis:6379/0
+      WORKBENCH_STORAGE_ROOT: /data/workspaces
+      WORKBENCH_WORKSPACE_TTL_MS: ${WORKBENCH_WORKSPACE_TTL_MS:-2592000000}
+      WORKBENCH_OBJECT_STORAGE_URL: http://object-storage:8888/workbench
+      WORKBENCH_TERMINAL_MODE: ${WORKBENCH_TERMINAL_MODE:-remote}
+      WORKBENCH_SANDBOX_URL: ${WORKBENCH_SANDBOX_URL:-http://sandbox:4180}
+      WORKBENCH_SANDBOX_TOKEN: ${WORKBENCH_SANDBOX_TOKEN:-change-me-workbench-sandbox-token}
+      WORKBENCH_MARKITDOWN_URL: http://markitdown:8490
+      WORKBENCH_MARKITDOWN_TIMEOUT_MS: ${WORKBENCH_MARKITDOWN_TIMEOUT_MS:-20000}
+    ports:
+      - "127.0.0.1:${WORKBENCH_HOST_PORT:-4175}:4175"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - workbench-data:/data/workspaces
+    depends_on:
+      redis:
+        condition: service_healthy
+      object-storage:
+        condition: service_healthy
+      markitdown:
+        condition: service_healthy
+      sandbox:
+        condition: service_healthy
+      workbench-volume-init:
+        condition: service_completed_successfully
+    networks:
+      - edge
+      - core
+      - delegators-gateway
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4175/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  workbench-volume-init:
+    image: alpine:3.23
+    user: "0:0"
+    network_mode: "none"
+    command: ["sh", "-c", "mkdir -p /data/workspaces && chown -R 10001:10001 /data/workspaces"]
+    volumes:
+      - workbench-data:/data/workspaces
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+
+  sandbox:
+    build:
+      context: .
+      target: sandbox-runtime
+    user: "0:0"
+    environment:
+      NODE_ENV: production
+      WORKBENCH_SANDBOX_PORT: "4180"
+      WORKBENCH_SANDBOX_BIND_HOST: 0.0.0.0
+      WORKBENCH_SANDBOX_TOKEN: ${WORKBENCH_SANDBOX_TOKEN:-change-me-workbench-sandbox-token}
+      WORKBENCH_STORAGE_ROOT: /data/workspaces
+      WORKBENCH_SANDBOX_VOLUME: ${COMPOSE_PROJECT_NAME:-delegators-workbench}_workbench-data
+    volumes:
+      - workbench-data:/data/workspaces
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      workbench-volume-init:
+        condition: service_completed_successfully
+    networks:
+      - core
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4180/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  markitdown:
+    build:
+      context: ./markitdown-service
+    environment:
+      MARKITDOWN_PORT: "8490"
+      MARKITDOWN_MAX_BYTES: ${MARKITDOWN_MAX_BYTES:-33554432}
+    networks:
+      - core
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8490/healthz',timeout=2).status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  redis:
+    image: redis:7.2.10-alpine
+    # Cache ONLY — pure in-memory (no AOF, no RDB snapshots) so redis can never crash on a
+    # mis-owned data dir again. Durable state lives in Postgres + object-storage; this redis is
+    # ephemeral coordination/cache and is safe to lose on restart.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    networks:
+      - core
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  object-storage:
+    image: chrislusf/seaweedfs:4.29
+    command: ["mini", "-dir=/data"]
+    volumes:
+      - object-storage-data:/data
+    networks:
+      - core
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/"]
+      interval: 8s
+      timeout: 4s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  edge: {}
+  core:
+    internal: true
+  delegators-gateway:
+    external: true
+    name: delegators-swe-agentic-api_public
+
+volumes:
+  redis-data: {}
+  workbench-data: {}
+  object-storage-data: {}

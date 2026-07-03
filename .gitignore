@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-server/
+.vercel/
+.env
+.env.*
+!.env.example
+coverage/
+artifacts/
+workspace/
+storage/
+*.log
+

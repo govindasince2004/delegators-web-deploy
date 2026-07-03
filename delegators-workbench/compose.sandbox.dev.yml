@@ -1,0 +1,39 @@
+services:
+  sandbox:
+    environment:
+      WORKBENCH_SANDBOX_TOKEN: ${WORKBENCH_SANDBOX_TOKEN:?set WORKBENCH_SANDBOX_TOKEN}
+      WORKBENCH_SANDBOX_USER: "10001:10001"
+      WORKBENCH_SANDBOX_VOLUME: ""
+      DOCKER_HOST: tcp://sandbox-docker:2375
+    volumes: !override
+      - workbench-data:/data/workspaces
+    depends_on:
+      sandbox-docker:
+        condition: service_healthy
+    networks:
+      - core
+      - sandbox
+
+  sandbox-docker:
+    image: docker:27.5.1-dind-rootless
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2"]
+    volumes:
+      - sandbox-docker-data:/home/rootless/.local/share/docker
+      - workbench-data:/data/workspaces
+    networks:
+      - sandbox
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+networks:
+  sandbox: {}
+
+volumes:
+  sandbox-docker-data: {}
