@@ -225,6 +225,40 @@ p {
   gap: 2px;
 }
 
+.topbar-link-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease,
+    transform 180ms ease;
+}
+
+.topbar-link-button:hover,
+.topbar-link-button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.topbar-link-button:active {
+  transform: scale(0.97);
+}
+
+.topbar-link-button.secondary {
+  color: rgba(255, 255, 255, 0.58);
+  background: transparent;
+}
+
 .connection-state {
   display: inline-flex;
   align-items: center;
@@ -6288,6 +6322,15 @@ button.loading-breadcrumb:hover .loading-breadcrumb-chevron,
 }
 
 @media (max-width: 430px) {
+  .topbar-link-button span {
+    display: none;
+  }
+
+  .topbar-link-button {
+    width: 34px;
+    padding: 0;
+  }
+
   .topbar-actions .quiet-icon:first-of-type {
     display: none;
   }

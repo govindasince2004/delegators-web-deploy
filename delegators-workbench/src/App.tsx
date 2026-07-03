@@ -161,6 +161,7 @@ import {
   probeWorkbenchSession,
   readResolvedCredentials,
   resolveManualSessionPlan,
+  STORE_URL,
   WORKBENCH_WALLET_RESOLVED_EVENT,
   workbenchCreditUsage,
   workbenchFetch,
@@ -1721,6 +1722,8 @@ export default function App() {
     openWorkbenchPlans();
   }
 
+  const clientSiteUrl = STORE_URL.replace(/\/$/, '');
+
   function promptForConnection(issue: string) {
     setError(issue);
     if (account.enabled) return;
@@ -2700,6 +2703,23 @@ export default function App() {
             </button>
           </div>
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="topbar-link-button"
+              onClick={openPlansPage}
+              title="View Workbench plans"
+            >
+              <CreditCard size={15} aria-hidden="true" />
+              <span>Plans</span>
+            </button>
+            <a
+              className="topbar-link-button secondary"
+              href={clientSiteUrl}
+              title="Back to Delegators client site"
+            >
+              <ArrowRight size={15} aria-hidden="true" />
+              <span>Client site</span>
+            </a>
             <span
               className={`connection-state ${hasConnection ? 'ready' : ''} ${planBlocked ? 'blocked' : ''}`}
             >

@@ -62,6 +62,24 @@ html[data-theme="light"] .quiet-icon.active {
   background: var(--surface-hover);
 }
 
+html[data-theme="light"] .topbar-link-button {
+  border: 1px solid rgba(15, 15, 20, 0.1);
+  color: #141417;
+  background: #ffffff;
+}
+
+html[data-theme="light"] .topbar-link-button:hover,
+html[data-theme="light"] .topbar-link-button:focus-visible {
+  border-color: rgba(199, 21, 133, 0.22);
+  color: #c71585;
+  background: rgba(255, 20, 147, 0.06);
+}
+
+html[data-theme="light"] .topbar-link-button.secondary {
+  color: var(--muted);
+  background: transparent;
+}
+
 html[data-theme="light"] .theme-switch {
   color: var(--faint);
 }
